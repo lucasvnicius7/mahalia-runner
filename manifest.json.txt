@@ -1,0 +1,23 @@
+{
+  "name": "Aventuras de Mahalia",
+  "short_name": "Mahalia",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "background_color": "#111111",
+  "theme_color": "#0fb9b1",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "mahalia.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "mahalia.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

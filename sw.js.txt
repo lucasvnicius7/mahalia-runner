@@ -1,0 +1,33 @@
+const CACHE_NAME = 'mahalia-jogo-v1';
+
+// Lista de arquivos que o celular deve salvar para jogar offline
+const assetsToCache = [
+    './',
+    './index.html',
+    './manifest.json',
+    './mahalia.jpg',
+    './mango.jpg',
+    './benny.jpg',
+    './daphy.jpg',
+    './lucas.jpg'
+];
+
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Arquivos salvos para modo offline!');
+                return cache.addAll(assetsToCache);
+            })
+    );
+});
+
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                // Retorna o arquivo salvo offline, ou tenta baixar da internet se não tiver
+                return response || fetch(event.request);
+            })
+    );
+});

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aventuras de Mahalia</title>
+    <style>
+        :root {
+            --sky: #0fb9b1;
+            --ui-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 100vh; background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; color: #333;
+            touch-action: none; /* Previne scroll no mobile */
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            border: 4px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 2 / 1;
+        }
+
+        canvas {
+            display: block; width: 100%; height: 100%;
+            background-color: var(--sky);
+        }
+
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            pointer-events: none; z-index: 10;
+        }
+
+        .stat-box {
+            background: var(--ui-bg); padding: 5px 15px;
+            border-radius: 50px; font-weight: 900; font-size: 1rem;
+            display: flex; align-items: center; gap: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); color: #2c3e50;
+        }
+
+        #special-alert {
+            position: absolute; top: 70px; left: 50%;
+            transform: translateX(-50%); background: #f1c40f; color: #000;
+            padding: 10px 20px; border-radius: 12px; font-weight: 900;
+            border: 3px solid #000; display: none; animation: bounce 0.8s infinite;
+            z-index: 5; font-size: 1rem; text-align: center; width: 80%;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, 0); }
+            50% { transform: translate(-50%, -10px); }
+        }
+
+        /* Modais */
+        .overlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; color: white; z-index: 20; text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        .btn {
+            background: #e1b12c; color: #111; border: none;
+            padding: 15px 40px; font-size: 1.2rem; border-radius: 50px;
+            cursor: pointer; transition: 0.2s; font-weight: 900;
+            margin-top: 15px; box-shadow: 0 6px 0 #c28b00;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 #c28b00; }
+
+        #choice-box {
+            background: white; color: #333; padding: 20px;
+            border-radius: 20px; text-align: center; width: 85%;
+            max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #f1c40f;
+        }
+        #choice-title { color: #e67e22; font-size: 1.5rem; margin: 0 0 10px 0; }
+        
+        .choice-btn {
+            display: block; width: 100%; padding: 12px; margin: 8px 0;
+            font-size: 1rem; font-weight: bold; border: none; border-radius: 10px;
+            color: white;
+        }
+        #btn-opt1 { background: #3498db; box-shadow: 0 5px 0 #2980b9; }
+        #btn-opt2 { background: #2ecc71; box-shadow: 0 5px 0 #27ae60; }
+
+        .instructions {
+            margin-top: 15px; font-size: 0.85rem; background: rgba(255,255,255,0.1);
+            padding: 10px; border-radius: 15px;
+        }
+
+        #abilities-container {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; width: 90%; max-width: 400px; z-index: 10;
+        }
+        .ability-col { flex: 1; display: none; flex-direction: column; align-items: center; }
+        .ability-label { color: white; font-weight: bold; font-size: 0.7rem; margin-bottom: 3px; text-shadow: 1px 1px 2px black; }
+        .ability-bar { width: 100%; height: 10px; background: rgba(0,0,0,0.6); border: 2px solid white; border-radius: 10px; overflow: hidden; }
+        .ability-fill { height: 100%; background: #2ecc71; width: 100%; }
+
+        /* Controles Mobile */
+        #mobile-controls {
+            position: absolute; bottom: 10px; left: 0; width: 100%;
+            display: flex; justify-content: space-between; padding: 0 10px;
+            box-sizing: border-box; z-index: 15; pointer-events: none;
+        }
+        .control-group { display: flex; gap: 10px; pointer-events: auto; }
+        .mobile-btn {
+            background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.6);
+            color: white; font-weight: bold; font-size: 0.9rem; border-radius: 50%;
+            width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+            user-select: none; text-shadow: 1px 1px 3px black; backdrop-filter: blur(2px);
+        }
+        .mobile-btn:active { background: rgba(255,255,255,0.6); transform: scale(0.95); }
+
+        @media (min-width: 800px) {
+            #mobile-controls { display: none; } /* Esconde botões na tela grande */
+            #abilities-container { bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div class="stat-box">📍 <span id="distVal">0</span>m</div>
+            <div class="stat-box">❤️ <span id="livesVal">1</span></div>
+        </div>
+
+        <div id="special-alert">Alerta!</div>
+
+        <!-- Barras de Poder -->
+        <div id="abilities-container">
+            <div id="col-dance" class="ability-col">
+                <div id="lbl-dance" class="ability-label">Dança (D)</div>
+                <div class="ability-bar"><div id="fill-dance" class="ability-fill"></div></div>
+            </div>
+            <div id="col-fly" class="ability-col">
+                <div id="lbl-fly" class="ability-label">Voo Mágico (L)</div>
+                <div class="ability-bar"><div id="fill-fly" class="ability-fill"></div></div>
+            </div>
+        </div>
+
+        <!-- Controles para Celular -->
+        <div id="mobile-controls">
+            <div class="control-group">
+                <div id="btn-duck" class="mobile-btn">↓ Abx</div>
+                <div id="btn-jump" class="mobile-btn">↑ Pulo</div>
+            </div>
+            <div class="control-group">
+                <div id="btn-dance" class="mobile-btn" style="display:none;">D</div>
+                <div id="btn-fly" class="mobile-btn" style="display:none;">L</div>
+            </div>
+        </div>
+
+        <!-- Tela Inicial -->
+        <div id="main-overlay" class="overlay">
+            <h1 id="msgTitle" style="font-size: 2.5rem; margin-bottom: 5px; color: #fbc531; text-shadow: 2px 2px #111;">Aventuras de Mahalia</h1>
+            <p id="msgText" style="font-size: 1rem; margin-bottom: 15px;">Corra em família e decida o seu destino!</p>
+            <button class="btn" id="startBtn">Começar</button>
+            <div class="instructions">
+                No PC: <b>Setas</b> para pular/abaixar. <b>D</b>/<b>L</b> para poderes.<br>
+                No Celular: Use os botões na tela!
+            </div>
+        </div>
+
+        <!-- Tela de Escolhas -->
+        <div id="choice-overlay" class="overlay hidden">
+            <div id="choice-box">
+                <h2 id="choice-title">Evento!</h2>
+                <p id="choice-desc">Descrição.</p>
+                <button id="btn-opt1" class="choice-btn">Opção 1</button>
+                <button id="btn-opt2" class="choice-btn">Opção 2</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Resolução interna fixa
+    const WIDTH = 800; const HEIGHT = 400;
+    canvas.width = WIDTH; canvas.height = HEIGHT;
+
+    // UI Elements
+    const distVal = document.getElementById('distVal');
+    const livesVal = document.getElementById('livesVal');
+    const specialAlert = document.getElementById('special-alert');
+    const colDance = document.getElementById('col-dance');
+    const fillDance = document.getElementById('fill-dance');
+    const lblDance = document.getElementById('lbl-dance');
+    const colFly = document.getElementById('col-fly');
+    const fillFly = document.getElementById('fill-fly');
+    const lblFly = document.getElementById('lbl-fly');
+    
+    // Controles Mobile
+    const btnDuck = document.getElementById('btn-duck');
+    const btnJump = document.getElementById('btn-jump');
+    const btnDance = document.getElementById('btn-dance');
+    const btnFlyMobile = document.getElementById('btn-fly');
+
+    let gameState = 'START';
+    let distance = 0;
+    let lives = 1;
+    let gameSpeed = 6.5;
+    let frames = 0;
+    let currentMap = 'avenida'; // 'avenida' ou 'surubim'
+
+    // Poderes
+    let isInvincible = false;
+    let invincibilityTimer = 0; // Dano normal
+    
+    // Poder de Dança (Mango)
+    let danceCooldown = 0;
+    let isDancing = false;
+    let danceTimer = 0;
+    
+    // Poder de Voo (Lucas)
+    let flyCooldown = 0;
+    let isFlying = false;
+    let flyTimer = 0;
+
+    const POWER_TIME = 180; // 3 segundos ativos
+    const MAX_COOLDOWN = 600; // 10 segundos recarga
+    let branchChance = 0.35; 
+
+    let player = null;
+    let companions = [];
+    let obstacles = [];
+    let bgTrees = [];
+    let clouds = []; 
+    let cityBuildings = []; // Para Surubim
+
+    // ====== IMAGENS GHIBLI ======
+    const assets = {
+        mahalia: new Image(), mango: new Image(), benny: new Image(),
+        daphy: new Image(), lucas: new Image()
+    };
+    assets.mahalia.src = 'mahalia.jpg';
+    assets.mango.src = 'mango.jpg';
+    assets.benny.src = 'benny.jpg';
+    assets.daphy.src = 'daphy.jpg';
+    assets.lucas.src = 'lucas.jpg';
+
+    // ====== EVENTOS ======
+    let currentEventIndex = 0;
+    const storyEvents = [
+        { d: 200, title: "Obstáculos Inesperados", text: "As dificuldades apareceram, mas a jornada não pode parar. Como seguir?", 
+          btn1: "Enfrentar de frente (Acelera)", act1: () => gameSpeed += 1.5, 
+          btn2: "Ir com sabedoria (+1 Vida)", act2: () => lives += 1 },
+        { d: 500, title: "Desvios na Jornada", text: "Um desvio surge, exigindo adaptação.", 
+          btn1: "Aceitar a mudança (Mais Galhos)", act1: () => { bgTrees = []; branchChance = 0.7; }, 
+          btn2: "Manter o foco (Mais Veículos)", act2: () => { branchChance = 0.1; } },
+        { d: 800, title: "O Valor da Pausa", text: "Até os mais fortes precisam respirar.", 
+          btn1: "Cuidar de si (Recupera vidas)", act1: () => lives = 5, 
+          btn2: "Reunir forças (Zera recargas)", act2: () => { danceCooldown = 0; flyCooldown = 0; } },
+        { d: 1100, title: "Laços do Caminho", text: "Novas conexões clareiam os dias.", 
+          btn1: "Acolher (+2 Vidas)", act1: () => lives += 2, 
+          btn2: "Seguir o compasso (Acelera)", act2: () => gameSpeed += 1.5 },
+        { d: 1500, title: "Resiliência", text: "O cansaço bate, mas a vontade de vencer é maior.", 
+          btn1: "Explosão de energia (Invencível 8s)", act1: () => { isInvincible = true; invincibilityTimer = 480; }, 
+          btn2: "Paciência (Diminui velocidade)", act2: () => gameSpeed = Math.max(5, gameSpeed - 2) },
+        { d: 2000, title: "Visão de Cima", text: "Olhando as nuvens de Surubim, os problemas parecem tão pequenos. O que você sente?", 
+          btn1: "Liberdade (Voar por 5s)", act1: () => { isFlying = true; flyTimer = 300; if(player) player.jump(); }, 
+          btn2: "Paz (+3 Vidas)", act2: () => lives += 3 },
+        { d: 2600, title: "A Força da União", text: "A distância é longa, mas de mãos dadas o peso some.", 
+          btn1: "Proteger a todos (Escudo por 10s)", act1: () => { isInvincible = true; invincibilityTimer = 600; }, 
+          btn2: "Celebrar a vida (Dança por 5s)", act2: () => { isDancing = true; danceTimer = 300; } },
+        { d: 3300, title: "O Tempo é um Sopro", text: "O cenário passa rápido demais. Apreciar a viagem é o mais importante.", 
+          btn1: "Desacelerar o tempo (Velocidade cai)", act1: () => gameSpeed = Math.max(6, gameSpeed - 3), 
+          btn2: "Viver intensamente (Acelera muito)", act2: () => gameSpeed += 2.5 },
+        { d: 4100, title: "Além dos Limites", text: "Quando achamos que não dá mais, descobrimos uma nova força interior.", 
+          btn1: "Fôlego extra (Recupera Tudo)", act1: () => { lives = 5; danceCooldown = 0; flyCooldown = 0; }, 
+          btn2: "Invulnerabilidade (Invencível 8s)", act2: () => { isInvincible = true; invincibilityTimer = 480; } },
+        { d: 5000, title: "O Infinito", text: "O amor e a jornada não têm fim. Vocês são imbatíveis!", 
+          btn1: "Voar para o horizonte", act1: () => { isFlying = true; flyTimer = 600; if(player) player.jump(); }, 
+          btn2: "Comemorar a vitória", act2: () => { isDancing = true; danceTimer = 600; } }
+    ];
+
+    function triggerEvent(eventData) {
+        gameState = 'CHOICE';
+        document.getElementById('choice-overlay').classList.remove('hidden');
+        document.getElementById('choice-title').innerText = eventData.title;
+        document.getElementById('choice-desc').innerText = eventData.text;
+        
+        let b1 = document.getElementById('btn-opt1'); let b2 = document.getElementById('btn-opt2');
+        b1.innerText = eventData.btn1; b1.onclick = () => { eventData.act1(); resumeFromEvent(); };
+        b2.innerText = eventData.btn2; b2.onclick = () => { eventData.act2(); resumeFromEvent(); };
+    }
+
+    function resumeFromEvent() {
+        document.getElementById('choice-overlay').classList.add('hidden');
+        gameState = 'PLAYING';
+        obstacles = obstacles.filter(o => o.x > WIDTH + 50);
+    }
+
+    function showCustomAlert(msg, duration = 4000) {
+        specialAlert.innerHTML = msg;
+        specialAlert.style.display = 'block';
+        setTimeout(() => specialAlert.style.display = 'none', duration);
+    }
+
+    // --- FUNÇÃO DE DESENHO (CORTANDO IMAGENS EM CÍRCULOS) ---
+    const drawChar = (type, x, y, isDucking, currentFrames) => {
+        ctx.save();
+        ctx.translate(x, y); 
+        
+        // Efeito visual de dano
+        if (isInvincible && !isDancing && !isFlying && currentFrames % 10 < 5) ctx.globalAlpha = 0.5;
+
+        // Voo ou Abaixar
+        if (isFlying || type === 'lucas') {
+            // Asinhas enquanto voa (ou para o Lucas, que sempre voa)
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.beginPath(); ctx.ellipse(-20, -30, 15, 8, Math.PI/4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(20, -30, 15, 8, -Math.PI/4, 0, Math.PI*2); ctx.fill();
+        } else if (isDucking) {
+            ctx.scale(1, 0.6); 
+        }
+
+        // Sombra se não estiver voando
+        if (!isFlying && type !== 'lucas') {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath(); ctx.ellipse(0, 0, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
+        }
+
+        if (assets[type] && assets[type].complete && assets[type].naturalWidth !== 0) {
+            // Recorte Circular Mágico para remover o quadriculado
+            ctx.beginPath();
+            ctx.arc(0, -30, 25, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip(); // Corta tudo fora do círculo
+            
+            // Desenha a imagem centralizada no círculo
+            ctx.drawImage(assets[type], -25, -55, 50, 50); 
+            ctx.restore();
+            return; 
+        }
+
+        // Fallback (Desenhos antigos caso a imagem não carregue)
+        ctx.fillStyle = type === 'mahalia' ? '#81d4fa' : type === 'mango' ? '#2ecc71' : type === 'lucas' ? '#f1c40f' : '#222';
+        ctx.beginPath(); ctx.arc(0, -30, 20, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    };
+
+    class Cloud {
+        constructor() {
+            this.x = WIDTH + Math.random() * 300; this.y = 20 + Math.random() * 80;
+            this.speed = gameSpeed * 0.1 + Math.random() * 0.2; this.size = 20 + Math.random() * 15;
+        }
+        update() { this.x -= this.speed; }
+        draw() {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x + this.size*0.8, this.y - this.size*0.4, this.size*0.8, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x + this.size*1.6, this.y, this.size*0.9, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    class Player {
+        constructor() {
+            this.x = 220; this.groundY = 320; 
+            this.y = this.groundY; 
+            this.width = 30; this.height = 50; 
+            this.dy = 0; this.jumpPower = -14; this.gravity = 0.7; 
+            this.isGrounded = true; this.isDucking = false;
+            this.history = []; 
+        }
+
+        jump() { if (this.isGrounded && !this.isDucking && !isFlying) { this.dy = this.jumpPower; this.isGrounded = false; } }
+        duck(status) { if(!isFlying) { this.isDucking = status; this.height = status ? 25 : 50; } }
+
+        update() {
+            if (isFlying) {
+                // Flutua no ar suavemente
+                let targetY = this.groundY - 120 + Math.sin(frames * 0.1) * 10;
+                this.y += (targetY - this.y) * 0.1;
+                this.dy = 0; this.isGrounded = false; this.isDucking = false;
+            } else {
+                this.y += this.dy;
+                if (this.y < this.groundY) { this.dy += this.gravity; this.isGrounded = false; } 
+                else { this.y = this.groundY; this.dy = 0; this.isGrounded = true; }
+            }
+
+            this.history.push({ x: this.x, y: this.y, ducking: this.isDucking, flying: isFlying });
+            if (this.history.length > 80) this.history.shift(); 
+        }
+
+        draw() {
+            if (isDancing) {
+                ctx.save(); ctx.fillStyle = `hsla(${frames * 10 % 360}, 100%, 60%, 0.5)`;
+                ctx.beginPath(); ctx.ellipse(this.x, this.y - 25, 40, 50, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            }
+            drawChar('mahalia', this.x, this.y, this.isDucking, frames);
+        }
+    }
+
+    class Companion {
+        constructor(type, delayIndex) { this.type = type; this.delay = delayIndex; }
+        draw(playerHistory) {
+            if (this.type === 'lucas' && player) {
+                // Lucas voa flutuando em cima da Mahalia
+                let targetX = player.x + 30; // Um pouco atrás e pro lado
+                let targetY = player.y - 70 + Math.sin(frames * 0.1) * 10;
+                drawChar(this.type, targetX, targetY, false, frames);
+            } else {
+                const index = Math.max(0, playerHistory.length - 1 - this.delay);
+                if (index >= 0 && playerHistory[index]) {
+                    const pos = playerHistory[index];
+                    drawChar(this.type, pos.x - (this.delay * 4), pos.y, pos.ducking, frames);
+                }
+            }
+        }
+    }
+
+    class Obstacle {
+        constructor() {
+            const rand = Math.random();
+            if (rand < branchChance && distance > 50) {
+                this.type = currentMap === 'surubim' ? 'bird' : 'branch';
+                this.y = 285; this.height = 30; this.width = 60; this.speed = gameSpeed + 1;
+            } else if (rand < 0.7) {
+                this.type = 'car';
+                this.y = 320; this.height = 40; this.width = 70;
+                this.emoji = Math.random() > 0.5 ? '🚗' : '🚙'; this.speed = gameSpeed + 1;
+            } else {
+                this.type = 'moto';
+                this.y = 320; this.height = 35; this.width = 50;
+                this.emoji = '🏍️'; this.speed = gameSpeed + 2.5; 
+            }
+            this.x = WIDTH + 100;
+        }
+        update() { this.x -= this.speed; }
+        draw() {
+            if (this.type === 'branch') {
+                ctx.fillStyle = '#4e342e'; ctx.fillRect(this.x + 20, 150, 20, 200); 
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(this.x - 20, this.y - this.height, this.width + 30, this.height); 
+                ctx.fillStyle = '#2ecc71';
+                ctx.beginPath(); ctx.arc(this.x + 20, this.y - 20, 30, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x - 10, this.y - 25, 25, 0, Math.PI*2); ctx.fill();
+            } else if (this.type === 'bird') {
+                ctx.font = '45px Arial'; ctx.textAlign = 'center'; ctx.fillText('🦅', this.x, this.y);
+            } else {
+                ctx.font = (this.type === 'car' ? '55px' : '45px') + ' Arial';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(this.emoji, this.x, this.y);
+            }
+        }
+    }
+
+    class BackgroundTree {
+        constructor() { this.x = WIDTH + Math.random() * 200; this.y = 170; this.size = 30 + Math.random() * 20; this.speed = gameSpeed * 0.3; }
+        update() { this.x -= this.speed; }
+        draw() {
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(this.x - 5, this.y, 10, 40);
+            ctx.fillStyle = currentMap === 'surubim' ? '#f368e0' : '#27ae60'; // Arvores rosas em Surubim
+            ctx.beginPath(); ctx.arc(this.x, this.y - 10, this.size, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    function init() {
+        player = new Player(); companions = []; obstacles = []; bgTrees = []; clouds = []; cityBuildings = [];
+        for(let i=0; i<5; i++) bgTrees.push(new BackgroundTree()); 
+        for(let i=0; i<4; i++) clouds.push(new Cloud());
+        
+        // Gerar cidade de fundo para Surubim
+        for(let i=0; i<15; i++) cityBuildings.push({x: i * 60, width: 40 + Math.random()*30, height: 50 + Math.random()*100, color: `hsl(${200+Math.random()*40}, 30%, 40%)`});
+
+        distance = 0; lives = 1; gameSpeed = 6.5; frames = 0; currentMap = 'avenida'; currentEventIndex = 0; branchChance = 0.35;
+        danceCooldown = 0; isDancing = false; danceTimer = 0;
+        flyCooldown = 0; isFlying = false; flyTimer = 0;
+        invincibilityTimer = 0; isInvincible = false;
+        
+        distVal.innerText = 0; livesVal.innerText = 1;
+        colDance.style.display = 'none'; colFly.style.display = 'none'; btnDance.style.display = 'none'; btnFlyMobile.style.display = 'none';
+        specialAlert.style.display = 'none'; document.getElementById('main-overlay').classList.add('hidden');
+    }
+
+    function spawn() {
+        if (frames % 40 === 0 && currentMap === 'avenida') bgTrees.push(new BackgroundTree());
+        if (frames % 100 === 0) clouds.push(new Cloud());
+        let spawnRate = Math.max(35, 90 - Math.floor(distance / 15));
+        if (frames % spawnRate === 0) obstacles.push(new Obstacle());
+    }
+
+    function handleProgression() {
+        let d = Math.floor(distance);
+        
+        if (d >= 100 && !companions.find(c => c.type === 'benny')) {
+            companions.push(new Companion('benny', 12)); lives++; showCustomAlert("🐶 Seu fiel escudeiro Benny chegou!");
+        }
+        if (d >= 300 && !companions.find(c => c.type === 'mango')) {
+            companions.push(new Companion('mango', 24)); lives++;
+            colDance.style.display = 'flex'; btnDance.style.display = 'flex';
+            showCustomAlert("🕺 Seu melhor irmão chegou!<br>Use a Dança (D)!", 4000);
+        }
+        if (d >= 500 && !companions.find(c => c.type === 'daphy')) {
+            companions.push(new Companion('daphy', 36)); lives = 5; showCustomAlert("💖 Sua pessoa especial Daphy está aqui!");
+        }
+        if (d >= 1200 && !companions.find(c => c.type === 'lucas')) {
+            companions.push(new Companion('lucas', 48)); lives++;
+            colFly.style.display = 'flex'; btnFlyMobile.style.display = 'flex';
+            showCustomAlert("👼 Seu guardião Lucas chegou!<br>Aperte 'L' para Voar!", 5000);
+        }
+        // Transição para Surubim
+        if (d >= 1600 && currentMap === 'avenida') {
+            currentMap = 'surubim';
+            bgTrees = []; // Remove árvores antigas
+            showCustomAlert("☁️ Chegamos em Surubim!<br>Correndo pelo céu!", 6000);
+        }
+
+        if (currentEventIndex < storyEvents.length && d >= storyEvents[currentEventIndex].d) {
+            triggerEvent(storyEvents[currentEventIndex]); currentEventIndex++;
+        }
+    }
+
+    function updatePowers() {
+        // Lógica Dança
+        if (isDancing) {
+            danceTimer--; fillDance.style.width = (danceTimer / POWER_TIME * 100) + '%'; fillDance.style.background = '#e74c3c'; lblDance.innerText = "Dançando! " + Math.ceil(danceTimer/60) + "s";
+            if (danceTimer <= 0) { isDancing = false; danceCooldown = MAX_COOLDOWN; }
+        } else if (danceCooldown > 0) {
+            danceCooldown--; fillDance.style.width = ((MAX_COOLDOWN - danceCooldown) / MAX_COOLDOWN * 100) + '%'; fillDance.style.background = '#f1c40f'; lblDance.innerText = "Carregando...";
+        } else if (companions.find(c => c.type === 'mango')) {
+            fillDance.style.width = '100%'; fillDance.style.background = '#2ecc71'; lblDance.innerText = "Dança PRONTA (D)";
+        }
+
+        // Lógica Voo
+        if (isFlying) {
+            flyTimer--; fillFly.style.width = (flyTimer / POWER_TIME * 100) + '%'; fillFly.style.background = '#0984e3'; lblFly.innerText = "Voando! " + Math.ceil(flyTimer/60) + "s";
+            if (flyTimer <= 0) { isFlying = false; flyCooldown = MAX_COOLDOWN; }
+        } else if (flyCooldown > 0) {
+            flyCooldown--; fillFly.style.width = ((MAX_COOLDOWN - flyCooldown) / MAX_COOLDOWN * 100) + '%'; fillFly.style.background = '#f1c40f'; lblFly.innerText = "Carregando...";
+        } else if (companions.find(c => c.type === 'lucas')) {
+            fillFly.style.width = '100%'; fillFly.style.background = '#0984e3'; lblFly.innerText = "Voo PRONTO (L)";
+        }
+    }
+
+    function checkCollisions() {
+        obstacles.forEach((o, i) => {
+            let collision = false;
+            if (player && !isFlying && !isDancing) {
+                let pLeft = player.x - 15; let pRight = player.x + 15; let pTop = player.y - player.height; let pBottom = player.y;
+                let oLeft = o.x - o.width/2 + 5; let oRight = o.x + o.width/2 - 5; let oTop = o.y - o.height; let oBottom = o.y;
+                if (pRight > oLeft && pLeft < oRight && pBottom > oTop && pTop < oBottom) collision = true;
+            }
+            if (collision && !isInvincible) {
+                obstacles.splice(i, 1); lives--;
+                if (lives <= 0) gameOver(); else { isInvincible = true; invincibilityTimer = 90; }
+            }
+            if (o.x < -100) obstacles.splice(i, 1);
+        });
+    }
+
+    function update() {
+        frames++; distance += gameSpeed / 60; distVal.innerText = Math.floor(distance); livesVal.innerText = lives;
+        if (frames % 1000 === 0) gameSpeed += 0.3; 
+        if (player) player.update();
+
+        clouds.forEach((c, i) => { c.update(); if (c.x < -150) clouds.splice(i, 1); });
+        bgTrees.forEach((t, i) => { t.update(); if (t.x < -100) bgTrees.splice(i, 1); });
+        
+        if(currentMap === 'surubim') {
+            cityBuildings.forEach(b => { b.x -= gameSpeed * 0.1; if(b.x < -100) b.x = WIDTH + 50; });
+        }
+
+        obstacles.forEach(o => o.update());
+        checkCollisions();
+
+        if (isInvincible && !isDancing && !isFlying) { invincibilityTimer--; if (invincibilityTimer <= 0) isInvincible = false; }
+        updatePowers(); handleProgression();
+    }
+
+    function drawMap() {
+        // Céu
+        let skyGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+        if (currentMap === 'surubim') {
+            skyGradient.addColorStop(0, '#0a3d62'); skyGradient.addColorStop(1, '#82ccdd');
+        } else {
+            skyGradient.addColorStop(0, '#0fb9b1'); skyGradient.addColorStop(1, '#81ecec');
+        }
+        ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        clouds.forEach(c => c.draw());
+
+        if (currentMap === 'surubim') {
+            // Cidade ao fundo
+            cityBuildings.forEach(b => { ctx.fillStyle = b.color; ctx.fillRect(b.x, HEIGHT - b.height - 20, b.width, b.height); });
+            // Nuvens como pista
+            ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(WIDTH/2, 350, WIDTH, 80, 0, 0, Math.PI*2); ctx.fill();
+        } else {
+            bgTrees.forEach(t => t.draw());
+            ctx.fillStyle = '#0097e6'; ctx.fillRect(0, 160, WIDTH, 20); ctx.fillStyle = '#0080c0'; ctx.fillRect(0, 177, WIDTH, 3); 
+            ctx.fillStyle = '#44bd32'; ctx.fillRect(0, 180, WIDTH, 20); ctx.fillStyle = '#2c851e'; ctx.fillRect(0, 197, WIDTH, 3); 
+            ctx.fillStyle = '#353b48'; ctx.fillRect(0, 200, WIDTH, 150);
+            ctx.fillStyle = '#f5f6fa';
+            for(let i=0; i<15; i++) { ctx.fillRect((i * 80) - (frames * gameSpeed % 80), 270, 30, 4); }
+            ctx.fillStyle = '#44bd32'; ctx.fillRect(0, 350, WIDTH, 20); ctx.fillStyle = '#2c851e'; ctx.fillRect(0, 350, WIDTH, 3); 
+            ctx.fillStyle = '#c23616'; ctx.fillRect(0, 370, WIDTH, 30);
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT); drawMap();
+        obstacles.forEach(o => o.draw());
+        if (player) {
+            [...companions].reverse().forEach(c => c.draw(player.history));
+            player.draw();
+        } else { drawChar('mahalia', WIDTH/2, 320, false, frames); }
+    }
+
+    function gameLoop() {
+        if (gameState === 'PLAYING') { spawn(); update(); }
+        if (gameState === 'PLAYING' || gameState === 'CHOICE') { draw(); requestAnimationFrame(gameLoop); }
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER'; document.getElementById('main-overlay').classList.remove('hidden');
+        document.getElementById('msgTitle').innerText = "Fim da Corrida!"; document.getElementById('msgTitle').style.color = "#e74c3c";
+        document.getElementById('msgText').innerText = `Vocês chegaram a ${Math.floor(distance)} metros!`;
+    }
+
+    function triggerDance() {
+        if (companions.find(c => c.type === 'mango') && danceCooldown <= 0 && !isDancing && !isFlying) {
+            isDancing = true; danceTimer = POWER_TIME; 
+        }
+    }
+
+    function triggerFly() {
+        if (companions.find(c => c.type === 'lucas') && flyCooldown <= 0 && !isFlying && !isDancing) {
+            isFlying = true; flyTimer = POWER_TIME; player.jump(); // Dá um impulso ao decolar
+        }
+    }
+
+    // Controles PC
+    window.addEventListener('keydown', e => {
+        if (gameState === 'PLAYING' && player) {
+            if ((e.code === 'Space' || e.code === 'ArrowUp') && !isFlying) player.jump();
+            if (e.code === 'ArrowDown') player.duck(true);
+            if (e.code === 'KeyD') triggerDance();
+            if (e.code === 'KeyL') triggerFly();
+        } else if (e.code === 'Space' && (gameState === 'START' || gameState === 'GAMEOVER')) { startGame(); }
+    });
+    window.addEventListener('keyup', e => { if (player && e.code === 'ArrowDown') player.duck(false); });
+
+    // Controles Mobile (Toque)
+    const addTouch = (btn, actDown, actUp) => {
+        btn.addEventListener('touchstart', e => { e.preventDefault(); if(gameState === 'PLAYING') actDown(); });
+        if(actUp) btn.addEventListener('touchend', e => { e.preventDefault(); actUp(); });
+    };
+    addTouch(btnJump, () => { if(player && !isFlying) player.jump(); });
+    addTouch(btnDuck, () => { if(player) player.duck(true); }, () => { if(player) player.duck(false); });
+    addTouch(btnDance, triggerDance);
+    addTouch(btnFlyMobile, triggerFly);
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+
+    function startGame() { init(); gameState = 'PLAYING'; document.getElementById('main-overlay').classList.add('hidden'); gameLoop(); }
+    draw(); 
+</script>
+</body>
+</html>
