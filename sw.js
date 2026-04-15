@@ -1,15 +1,15 @@
-const CACHE_NAME = 'mahalia-jogo-v1';
+const CACHE_NAME = 'mahalia-jogo-v2'; // Mudei para v2 para forçar o navegador a esquecer as .jpg e baixar as .png
 
 // Lista de arquivos que o celular deve salvar para jogar offline
 const assetsToCache = [
     './',
     './index.html',
     './manifest.json',
-    './mahalia.jpg',
-    './mango.jpg',
-    './benny.jpg',
-    './daphy.jpg',
-    './lucas.jpg'
+    './mahalia.png',
+    './mango.png',
+    './benny.png',
+    './daphy.png',
+    './lucas.png'
 ];
 
 self.addEventListener('install', event => {
